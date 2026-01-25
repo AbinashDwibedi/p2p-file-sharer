@@ -24,16 +24,20 @@ with socket.socket(socket.AF_INET,socket.SOCK_STREAM)as s:
             if action == "ANNOUNCE":
                 for file_info in header["files"]:
                     fname = file_info["name"]
+                    fsize = file_info["size"]
                     if fname not in resources:
-                        resources[fname] = []
+                        resources[fname] = {
+                            "size":fsize,
+                            "peers":[]
+                        }
                     peer_info = (addr[0],header["port"])
-                    if peer_info not in resources[fname]:
-                        resources[fname].append(peer_info)
+                    if peer_info not in resources[fname]["peers"]:
+                        resources[fname]["peers"].append(peer_info)
                 print("files resistered")
                 print(resources)
             if action == "LOOKUP":
                 fname = header["name"]
-                peers = resources.get(fname,[])
+                peers = resources.get(fname,{})
                 peers_bytes = json.dumps(peers).encode("utf-8")
                 peers_len = struct.pack("!I",len(peers_bytes))
                 conn.sendall(peers_len)

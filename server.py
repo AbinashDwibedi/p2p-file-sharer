@@ -24,54 +24,51 @@ class ServerNode:
 
     def handle_client(self, conn, addr):
         try:
-            while True:
+            received = conn.recv(4)
+            if not received:return
+            header_len = struct.unpack("!I", received)[0]
+            header_data = conn.recv(header_len).decode("utf-8")
+            header = json.loads(header_data)
+            
+            if header["action"] == "HELLO":
+                self._send_header(conn, {"action": "READY"})
+                
                 received = conn.recv(4)
-                if not received:
-                    break
+                if not received:return
                 header_len = struct.unpack("!I", received)[0]
                 header_data = conn.recv(header_len).decode("utf-8")
                 header = json.loads(header_data)
                 
-                if header["action"] == "HELLO":
-                    self._send_header(conn, {"action": "READY"})
+                if header["action"] == "FILE":
+                    # file_name = header["name"]
+                    # file_data = self.get_file_details(file_name)
+                    # if not file_data:
+                    #     return
                     
-                    received = conn.recv(4)
-                    if not received:
-                        break
-                    header_len = struct.unpack("!I", received)[0]
-                    header_data = conn.recv(header_len).decode("utf-8")
-                    header = json.loads(header_data)
+                    # self._send_header(conn, file_data)
                     
-                    if header["action"] == "FILE":
+                    while True:
+                        received = conn.recv(4)
+                        if not received:
+                            break
+                        header_len = struct.unpack("!I", received)[0]
+                        header_data = conn.recv(header_len).decode("utf-8")
+                        header = json.loads(header_data)
+                        
                         file_name = header["name"]
-                        file_data = self.get_file_details(file_name)
-                        if not file_data:
-                            return
+                        piece_idx = header["piece_idx"]
+                        piece_size = header["piece_size"]
                         
-                        self._send_header(conn, file_data)
-                        
-                        while True:
-                            received = conn.recv(4)
-                            if not received:
-                                break
-                            header_len = struct.unpack("!I", received)[0]
-                            header_data = conn.recv(header_len).decode("utf-8")
-                            header = json.loads(header_data)
-                            
-                            file_name = header["name"]
-                            piece_idx = header["piece_idx"]
-                            piece_size = header["piece_size"]
-                            
-                            file_path = os.path.join(self.assets_path, file_name)
-                            if os.path.exists(file_path):
-                                with open(file_path, "rb") as f:
-                                    f.seek(piece_idx * piece_size)
-                                    conn.sendall(f.read(piece_size))
-                            else:
-                                pass 
+                        file_path = os.path.join(self.assets_path, file_name)
+                        if os.path.exists(file_path):
+                            with open(file_path, "rb") as f:
+                                f.seek(piece_idx * piece_size)
+                                conn.sendall(f.read(piece_size))
+                        else:
+                            return 
 
         except Exception:
-            pass
+            print("something went wrong")
         finally:
             conn.close()
 
