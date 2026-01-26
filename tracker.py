@@ -19,15 +19,16 @@ with socket.socket(socket.AF_INET,socket.SOCK_STREAM)as s:
             header_len = struct.unpack("!I",received)[0]
             received = conn.recv(header_len).decode("utf-8")
             header = json.loads(received)
-
             action = header.get("action")
             if action == "ANNOUNCE":
                 for file_info in header["files"]:
                     fname = file_info["name"]
                     fsize = file_info["size"]
+                    fhash = file_info["hash"]
                     if fname not in resources:
                         resources[fname] = {
                             "size":fsize,
+                            "hash":fhash,
                             "peers":[]
                         }
                     peer_info = (addr[0],header["port"])

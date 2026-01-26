@@ -4,6 +4,7 @@ import json
 import struct
 import math
 import threading
+import hashlib
 
 class ClientNode:
     def __init__(self, piece_size):
@@ -12,14 +13,31 @@ class ClientNode:
         self.tracker_port = 65000
         self.lock = threading.Lock()
         self.bitfield = []
-
+    
     def start(self):
         while True:
             file_name = input("Enter the filename you want to download (or 'q' to quit): ")
             if file_name.lower() == 'q':
                 break
             self._receive_file_swarm(file_name)
-
+    def verify_client_integrity(self,filename,expected_hash):
+        sha256_hash = hashlib.sha256()
+        try:
+            with open(filename,"rb")as f:
+                for byte_block in iter(lambda:f.read(4096),b""):
+                    sha256_hash.update(byte_block)
+            calculated_hash = sha256_hash.hexdigest()
+            if calculated_hash == expected_hash:
+                print(f"Integrity Verified! {filename} is perfect.")
+                return True
+            else:
+                print(f"CORRUPTION DETECTED! Hash mismatch.")
+                print(f"Expected: {expected_hash}")
+                print(f"Got:      {calculated_hash}")
+                return False
+        except Exception as e:
+            print("Something went wrong!",e)
+            return False
     def lookup_from_tracker(self, filename):
         header = {
             "action": "LOOKUP",
@@ -212,6 +230,7 @@ class ClientNode:
             print("No file is present on the tracker")
             return
         fsize = receive_all_hosts["size"]
+        fhash = receive_all_hosts["hash"]
         peers = receive_all_hosts["peers"]
         total_pieces = math.ceil(fsize/self.piece_size)
         self.preallocate_file(filename,fsize)
@@ -230,6 +249,8 @@ class ClientNode:
         for t in threads:
             t.join()
         print("Sworm download complete")
+        # verification of integrity
+        self.verify_client_integrity(filename,fhash)
         if all(self.bitfield):
             os.remove(filename+".meta")
             print("metadata file removed")

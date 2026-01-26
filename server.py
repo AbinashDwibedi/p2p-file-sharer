@@ -3,7 +3,7 @@ import socket
 import struct
 import json
 import os
-
+import hashlib
 class ServerNode:
     def __init__(self, assets_path, host="127.0.0.1", port=64500):
         self.assets_path = assets_path
@@ -98,16 +98,33 @@ class ServerNode:
                 s.sendall(header_bytes)
         except:
             pass
+    
+    def generate_file_hash(self,filepath):
+        if os.path.exists(filepath):
+            sha256_hash = hashlib.sha256()
+            try:
+                with open(filepath,"rb") as f:
+                    for byte_block in iter(lambda:f.read(4096),b""):
+                        sha256_hash.update(byte_block)
+                calculated_hash = sha256_hash.hexdigest()
+                return calculated_hash
+            except Exception as e:
+                print("Hashing failed! err:",e)
+        else:
+            print("no such file exists")
+            return
 
     def get_file_list(self):
         files = []
         if os.path.exists(self.assets_path):
             for filename in os.listdir(self.assets_path):
                 path = os.path.join(self.assets_path, filename)
+                hashed = self.generate_file_hash(path)
                 if os.path.isfile(path):
                     files.append({
                         "name": filename,
-                        "size": os.path.getsize(path)
+                        "size": os.path.getsize(path),
+                        "hash": hashed
                     })
         return files
 
